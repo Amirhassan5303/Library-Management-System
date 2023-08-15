@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import Category, Book, Student, Borrow
+from .models import Genre, Book, Member, Borrow
 
-admin.site.register(Category)
+admin.site.register(Genre)
 admin.site.register(Book)
-admin.site.register(Student)
+admin.site.register(Member)
 admin.site.register(Borrow)

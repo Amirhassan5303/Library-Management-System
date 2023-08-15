@@ -1,8 +1,14 @@
 from rest_framework import serializers
-from  .models import Users
+from .models import Book
 
 
-class UserSerializer(serializers.ModelSerializer):
+# class MemberSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Member
+#         fields = ["first_name", "last_name", "code"]
+
+class BookSerializer(serializers.ModelSerializer):
+
     class Meta:
-        model = Users
-        fields = ["name", "last_name", "id_number"]
+        model = Book
+        fields = "__all__"

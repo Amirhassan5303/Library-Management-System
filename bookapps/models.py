@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Category(models.Model):
+class Genre(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=2, choices=(("1", "Inactive"), ("2", "Active")), default=2)
@@ -13,8 +13,8 @@ class Category(models.Model):
 
 
 class Book(models.Model):
-    name = models.CharField(max_length=200)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
     description = models.TextField(blank=True, null=True)
     author = models.CharField(max_length=200)
     publisher = models.CharField(max_length=200)
@@ -23,10 +23,10 @@ class Book(models.Model):
     updated_time = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.title}"
 
 
-class Student(models.Model):
+class Member(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     code = models.CharField(max_length=200)
@@ -41,7 +41,7 @@ class Student(models.Model):
 
 
 class Borrow(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    member = models.ForeignKey(Member, on_delete=models.CASCADE)
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     borrow_date = models.DateField()
     return_date = models.DateField()
@@ -50,6 +50,6 @@ class Borrow(models.Model):
     updated_time = models.DateField(auto_now=True)
 
     def __str__(self):
-        return f"{self.student.first_name} {self.student.last_name} - {self.return_date}"
+        return f"{self.member.first_name} {self.member.last_name} - {self.return_date}"
 
-    
+
