@@ -4,7 +4,6 @@ from django.db import models
 class Genre(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=2, choices=(("1", "Inactive"), ("2", "Active")), default=2)
     created_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(auto_now=True)
 
@@ -12,12 +11,30 @@ class Genre(models.Model):
         return f"{self.name}"
 
 
+class City(models.Model):
+    name = models.CharField(max_length=100, default="Qom")
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class Author(models.Model):
+    first_name = models.CharField(max_length=200)
+    last_name = models.CharField(max_length=200)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, default=1)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+
 class Book(models.Model):
     title = models.CharField(max_length=200)
     genre = models.ForeignKey(Genre, on_delete=models.CASCADE)
     description = models.TextField(blank=True, null=True)
-    author = models.CharField(max_length=200)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE)
     publisher = models.CharField(max_length=200)
+    isbn = models.CharField(max_length=200)
+    price = models.DecimalField(max_length=200, decimal_places=2, max_digits=5)
     published_date = models.DateTimeField()
     created_time = models.DateTimeField(auto_now_add=True)
     updated_time = models.DateTimeField(auto_now=True)
@@ -29,12 +46,10 @@ class Book(models.Model):
 class Member(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
-    code = models.CharField(max_length=200)
-    gender = models.CharField(max_length=2, choices=(("1", "Male"), ("2", "Female")), default=1)
-    email = models.CharField(max_length=200)
-    address = models.CharField(max_length=200)
-    crated_time = models.DateTimeField(auto_now_add=True)
-    updated_time = models.DateField(auto_now=True)
+    expired_at = models.DateTimeField()
+    membership_type = models.CharField(max_length=2, choices=(("1", "regular"), ("2", "vip")), default=1)
+    created_time = models.DateTimeField(auto_now_add=True)
+    updated_time = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -45,11 +60,10 @@ class Borrow(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     borrow_date = models.DateField()
     return_date = models.DateField()
-    status = models.CharField(max_length=2, choices=(("1", "pending"), ("2", "returned")), default=1)
-    crated_time = models.DateTimeField(auto_now_add=True)
-    updated_time = models.DateField(auto_now=True)
+    status = models.CharField(max_length=2, choices=(
+        ("1", "pending"), ("2", "returned")), default=1)
+    created_time = models.DateTimeField(auto_now_add=True)
+    updated_time = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.member.first_name} {self.member.last_name} - {self.return_date}"
-
-

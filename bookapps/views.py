@@ -1,9 +1,13 @@
-from django.http import JsonResponse
 from .models import Member, Book
 from .serializers import BookSerializer
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics, filters
 from rest_framework.decorators import api_view
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.pagination import PageNumberPagination
+from django_filters import rest_framework as filter
+from django.http import HttpResponse, JsonResponse
+
 
 
 
@@ -40,7 +44,7 @@ def delete_book(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     book.delete()
-    return Response(status.HTTP_204_NO_CONTENT)
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
@@ -49,3 +53,27 @@ def add_book(request):
     if book_serializer.is_valid():
         book_serializer.save()
         return Response(status=status.HTTP_201_CREATED)
+
+
+# class BookFilter(filter.FilterSet):
+#     title = filter.CharFilter(field_name="title", lookup_expr="iexact")
+
+
+class CustomBookPagination(PageNumberPagination):
+    page_size = 3
+
+
+class BookListAPIView(generics.ListAPIView):
+
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["genre"]
+    search_fields = ["title", "description"]
+    ordering_fields = ["price"]
+    pagination_class = CustomBookPagination
+
+
+
+
+

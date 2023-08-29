@@ -6,4 +6,6 @@ urlpatterns = [
     path("update-book/<int:pk>/", views.update_book, name="update-book"),
     path("delete-book/<int:pk>/", views.delete_book, name="delete-book"),
     path("add-book/", views.add_book, name="add_book"),
+    path("book-list-api/", views.BookListAPIView.as_view(), name="book-list"),
+    # path("price-range/", views.price_range, name="price-range"),
 ]
