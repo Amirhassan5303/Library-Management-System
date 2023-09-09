@@ -45,7 +45,7 @@ class Book(models.Model):
         return f"{self.title}"
 
 
-class Member(User):
+class Member(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     phone_number = models.CharField(max_length=11, unique=True)
@@ -73,19 +73,3 @@ class Borrow(models.Model):
         return f"{self.member.first_name} {self.member.last_name} - {self.return_date}"
 
 
-class OTPVerification(models.Model):
-    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
-    otp = models.CharField(max_length=6)
-    verified = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def generate_otp(self):
-        self.otp = random_hex(3)
-        self.save()
-
-    def verify_otp(self, otp):
-        if not self.verified and self.otp == otp:
-            self.verified = True
-            self.save()
-            return True
-        return False
