@@ -9,5 +9,4 @@ urlpatterns = [
     path("add-book/", views.add_book, name="add_book"),
     path("book-list-api/", views.BookListAPIView.as_view(), name="book-list"),
     path("login-member/", views.login_member, name="sms-manager"),
-    path("send-sms/", views.send_sms, name="send-sms")
 ]

@@ -1,9 +1,6 @@
 import time
 import random
-from django.conf import settings
 import redis
-from django.contrib.auth import authenticate
-
 from .models import Member, Book, Borrow
 from .serializers import BookSerializer
 from rest_framework.response import Response
@@ -74,114 +71,183 @@ class BookListAPIView(generics.ListAPIView):
     pagination_class = CustomBookPagination
 
 
-class CircuitBreaker:
-    def __init__(self, failure_threshold, recovery_timeout):
-        self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
-        self.circuit_open_time = None
-        self.failure_count = 0
-        self.redis_client = redis.Redis(host='localhost', port=6379)
+# class CircuitBreakerOpen(Exception):
+#     pass
+#
+#
+# class Providers:
+#     providers_list = ['signal', 'kavehnegar']
+#
+#
+# class CircuitBreaker:
+#     def __init__(self, failure_threshold, recovery_timeout):
+#         self.failure_threshold = failure_threshold
+#         self.recovery_timeout = recovery_timeout
+#         self.circuit_open_time = None
+#         self.failure_count = 0
+#
+#     def __call__(self, func):
+#         def wrapped_func(*args, **kwargs):
+#             if self.circuit_open_time:
+#                 elapsed_time = time.time() - self.circuit_open_time
+#                 if elapsed_time < self.recovery_timeout:
+#                     raise CircuitBreakerOpen("Circuit breaker is open")
+#
+#                 self.reset_circuit()
+#
+#             try:
+#                 result = func(*args, **kwargs)
+#                 self.reset_circuit()
+#                 return result
+#             except Exception as e:
+#                 self.failure_count += 1
+#                 if self.failure_count >= self.failure_threshold:
+#                     self.open_circuit()
+#                     raise CircuitBreakerOpen("Circuit breaker is open")
+#                 print(f"Failed to execute function: {str(e)}")
+#
+#         return wrapped_func
+#
+#     def open_circuit(self):
+#         self.circuit_open_time = time.time()
+#
+#     def reset_circuit(self):
+#         self.failure_count = 0
+#         self.circuit_open_time = None
+#
+#
+# class SMSManager:
+#     def __init__(self):
+#         self.service_providers = Providers.providers_list
+#         self.provider_availability = {provider: True for provider in self.service_providers}
+#         self.provider_failure_count = {provider: 0 for provider in self.service_providers}
+#
+#     def login_with_otp(self, member):
+#         otp = self.generate_otp()
+#         self.send_sms(member, otp)
+#
+#     def generate_otp(self, length=6):
+#         otp = ""
+#         for _ in range(length):
+#             otp += str(random.randint(0, 9))
+#         return otp
+#
+#     def send_sms(self, member, message):
+#         try:
+#             self.choose_provider(member, message)
+#         except CircuitBreakerOpen:
+#             print("Circuit breaker is open. Unable to send SMS.")
+#
+#     def choose_provider(self, member, message):
+#         providers = self.get_available_providers()
+#         if not providers:
+#             raise CircuitBreakerOpen("No available service providers")
+#
+#         provider = random.choice(providers)
+#         try:
+#             self.send_sms_with_provider(provider, member, message)
+#             self.mark_provider_as_available(provider)
+#             self.reset_failure_count(provider)
+#         except Exception as e:
+#             print(f"Failed to send SMS through {provider}: {str(e)}")
+#             self.mark_provider_as_unavailable(provider)
+#             self.increment_failure_count(provider)
+#
+#     def get_available_providers(self):
+#         return [provider for provider, is_available in self.provider_availability.items() if is_available]
+#
+#     def send_sms_with_provider(self, provider, member, message):
+#         if provider == 'kavehnegar':
+#             self.send_sms_with_kavehnegar(member, message)
+#         elif provider == 'signal':
+#             self.send_sms_with_signal(member, message)
+#
+#     @CircuitBreaker(failure_threshold=3, recovery_timeout=1800)
+#     def send_sms_with_kavehnegar(self, member, message):
+#         print(f"Sending SMS with KavehNegar to {member}: {message}")
+#
+#     @CircuitBreaker(failure_threshold=3, recovery_timeout=1800)
+#     def send_sms_with_signal(self, member, message):
+#         print(f"Sending SMS with Signal to {member}: {message}")
+#
+#     def mark_provider_as_unavailable(self, provider):
+#         self.provider_availability[provider] = False
+#
+#     def mark_provider_as_available(self, provider):
+#         self.provider_availability[provider] = True
+#
+#     def increment_failure_count(self, provider):
+#         self.provider_failure_count[provider] += 1
+#
+#     def reset_failure_count(self, provider):
+#         self.provider_failure_count[provider] = 0
+#
+#     def get_failure_count(self, provider):
+#         return self.provider_failure_count.get(provider, 0)
+#
+#
+# sms_provider = SMSManager()
 
-    def __call__(self, func):
-        def wrapped_func(*args, **kwargs):
-            if self.circuit_open_time:
-                elapsed_time = time.time() - self.circuit_open_time
-                if elapsed_time < self.recovery_timeout:
-                    raise CircuitBreakerOpen("Circuit breaker is open")
 
-                self.reset_circuit()
+# class CircuitBreakerOpen(Exception):
+#     pass
+#
+#
+# class CircuitBreaker:
+#     def __init__(self, failure_threshold, recovery_timeout):
+#         self.failure_threshold = failure_threshold
+#         self.recovery_timeout = recovery_timeout
+#         self.circuit_open_time = None
+#         self.failure_count = 0
+#
+#     def __call__(self, func):
+#         def wrapped_func(*args, **kwargs):
+#             if self.circuit_open_time:
+#                 elapsed_time = time.time() - self.circuit_open_time
+#                 if elapsed_time < self.recovery_timeout:
+#                     raise CircuitBreakerOpen("Circuit breaker is open")
+#
+#                 self.reset_circuit()
+#
+#             try:
+#                 result = func(*args, **kwargs)
+#                 self.reset_circuit()
+#                 return result
+#             except Exception as e:
+#                 self.failure_count += 1
+#                 if self.failure_count >= self.failure_threshold:
+#                     self.open_circuit()
+#                     raise CircuitBreakerOpen("Circuit breaker is open")
+#                 print(f"Failed to execute function: {str(e)}")
+#
+#         return wrapped_func
+#
+#     def open_circuit(self):
+#         self.circuit_open_time = time.time()
+#
+#     def reset_circuit(self):
+#         self.failure_count = 0
+#         self.circuit_open_time = None
 
-            try:
-                result = func(*args, **kwargs)
-                self.reset_circuit()
-                return result
-            except Exception as e:
-                self.failure_count += 1
-                if self.failure_count >= self.failure_threshold:
-                    self.open_circuit()
-                    raise CircuitBreakerOpen("Circuit breaker is open")
-                print(f"Failed to execute function: {str(e)}")
-
-        return wrapped_func
-
-    def open_circuit(self):
-        self.circuit_open_time = time.time()
-        self.redis_client.set("circuit_breaker:state", "open")
-        self.redis_client.expire("circuit_breaker:state", self.recovery_timeout)
-
-    def reset_circuit(self):
-        self.failure_count = 0
-        self.circuit_open_time = None
-        self.redis_client.delete("circuit_breaker:state")
-
-
-class CircuitBreakerOpen(Exception):
-    pass
-
-
-class Providers:
-    providers_list = ['signal', 'kavehnegar']
-
-
-class SMSManager:
-    def __init__(self):
-        self.service_providers = Providers.providers_list
-        self.redis_client = redis.Redis(host=settings.CACHES['default']['LOCATION'])
-
-    def choose_provider(self):
-        provider = self.get_available_provider()
-        if provider is None:
-            raise Exception("No available service provider")
-        try:
-            self.send_sms_with_available_provider(provider)
-        except Exception as e:
-            print(f"Failed to send SMS through {provider}: {str(e)}")
-            self.mark_provider_as_unavailable(provider)
-
-    def get_available_provider(self):
-        available_providers = []
-        if len(available_providers) == 0:
-            provider = random.choice(self.service_providers)
-        else:
-            provider = random.choice(available_providers)
-        try:
-            if self.is_provider_available(provider):
-                return provider
-        except Exception as e:
-            print(f"Failed to send SMS through {provider}: {str(e)}")
-            self.mark_provider_as_unavailable(provider)
-
-    def is_provider_available(self, provider):
-        if self.redis_client.get(f"provider_status:{provider}") != b"unavailable":
-            return provider
-        else:
-            self.mark_provider_as_unavailable(provider)
-
-    def mark_provider_as_unavailable(self, provider):
-        self.redis_client.set(f"provider_status:{provider}", "unavailable")
-        self.choose_provider()
-
-    @CircuitBreaker(failure_threshold=3, recovery_timeout=1800)
-    def send_sms_with_available_provider(self, provider, phone_number, message):
-        print(f"Sending SMS through {provider}: {message} to {phone_number}")
-
-
-@api_view(["POST"])
-def send_sms(request):
-    if request.method == "POST":
-        sms_provider = SMSManager()
-        provider = sms_provider.choose_provider()
+redis_client = redis.from_url("redis://172.17.0.2:6379")
+redis_client.set(f"amirhassan", 3)
 
 
 @api_view(["POST"])
 def login_member(request):
-    if request.method == "POST":
-        username = request.data.get("username")
-        password = request.data.get("password")
-        otp = request.data.get("otp")
+    try:
+        if request.method == "POST":
+            username = request.data.get("username")
+            otp = login_with_otp(username)
+            print(otp)
+            return HttpResponse("Message has sent successfully")
+    except Exception as e:
+        return HttpResponse("Error occurred")
 
-        user = authenticate(request, username=username, password=password, otp=otp)
-        return HttpResponse("Authentication was successful")
+
+def login_with_otp(username):
+    otp = generate_otp()
+    return otp
 
 
 def generate_otp(length=6):
@@ -191,27 +257,42 @@ def generate_otp(length=6):
     return otp
 
 
-class SMSManagerView(View):
-    def post(self, request):
-        sms_manager = SMSManager()
-        phone_number = request.POST.get('phone_number')
-        message = request.POST.get('message')
-        otp = request.POST.get('otp')
+# def send_sms(username, otp):
+#     provider = choose_provider()
+#     if provider == 'signal':
+#         return send_sms_with_signal(username, otp)
+#     elif provider == 'kavehnegar':
+#         return send_sms_with_kavehnegar(username, otp)
+#
+#
+# def choose_provider():
+#     providers = ['signal', 'kavehnegar']
+#     provider = random.choice(providers)
+#     return provider
+#
+#
+# def send_sms_with_kavehnegar(username, otp):
+#     return f'The otp number for {username} is: {otp}, kavehnegar'
+#
+#
+# def send_sms_with_signal(username, otp):
+#     return f'The otp number for {username} is: {otp}, signal'
 
-        if phone_number and message and otp:
-            if self.verify_otp(phone_number, otp):
-                try:
-                    sms_manager.choose_provider()
-                    return HttpResponse("SMS sent successfully")
-                except CircuitBreakerOpen:
-                    return HttpResponse("Circuit breaker is open. Please try again later.")
-            else:
-                return HttpResponse("Invalid OTP")
-        else:
-            return HttpResponse("Invalid request")
 
-    def verify_otp(self, phone_number, otp):
-        return True
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
