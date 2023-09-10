@@ -1,6 +1,6 @@
-import time
-import random
-import redis
+from redis_connection import redis_client
+from otp_generator import generate_otp, verify_otp
+from circuit_breaker import send_otp_with_circuit_breaker
 from .models import Member, Book, Borrow
 from .serializers import BookSerializer
 from rest_framework.response import Response
@@ -8,75 +8,71 @@ from rest_framework import status, generics, filters
 from rest_framework.decorators import api_view
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
-from django.http import HttpResponse
-from django.views import View
+from django.http import HttpResponse, JsonResponse
 
 
-@api_view(["GET"])
-def book_detail(request, pk):
-    try:
-        book = Book.objects.get(id=pk)
-    except Book.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
 
-    book_serializer = BookSerializer(book)
-    return Response(book_serializer.data, status=status.HTTP_200_OK)
+# @api_view(["GET"])
+# def book_detail(request, pk):
+#     try:
+#         book = Book.objects.get(id=pk)
+#     except Book.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
 
-
-@api_view(["PUT"])
-def update_book(request, pk):
-    try:
-        book = Book.objects.get(id=pk)
-    except Book.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    book_serializer = BookSerializer(book, data=request.data)
-    if book_serializer.is_valid():
-        book_serializer.save()
-        return Response(book_serializer.data)
-    return Response(book_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     book_serializer = BookSerializer(book)
+#     return Response(book_serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(["DELETE"])
-def delete_book(request, pk):
-    try:
-        book = Book.objects.get(id=pk)
-    except Book.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+# @api_view(["PUT"])
+# def update_book(request, pk):
+#     try:
+#         book = Book.objects.get(id=pk)
+#     except Book.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    book.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-@api_view(["POST"])
-def add_book(request):
-    book_serializer = BookSerializer(data=request.data)
-    if book_serializer.is_valid():
-        book_serializer.save()
-        return Response(status=status.HTTP_201_CREATED)
+#     book_serializer = BookSerializer(book, data=request.data)
+#     if book_serializer.is_valid():
+#         book_serializer.save()
+#         return Response(book_serializer.data)
+#     return Response(book_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CustomBookPagination(PageNumberPagination):
-    page_size = 3
+# @api_view(["DELETE"])
+# def delete_book(request, pk):
+#     try:
+#         book = Book.objects.get(id=pk)
+#     except Book.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
+
+#     book.delete()
+#     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BookListAPIView(generics.ListAPIView):
+# @api_view(["POST"])
+# def add_book(request):
+#     book_serializer = BookSerializer(data=request.data)
+#     if book_serializer.is_valid():
+#         book_serializer.save()
+#         return Response(status=status.HTTP_201_CREATED)
 
-    queryset = Book.objects.all()
-    serializer_class = BookSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["genre"]
-    search_fields = ["title", "description"]
-    ordering_fields = ["price"]
-    pagination_class = CustomBookPagination
+
+# class CustomBookPagination(PageNumberPagination):
+#     page_size = 3
+
+
+# class BookListAPIView(generics.ListAPIView):
+
+#     queryset = Book.objects.all()
+#     serializer_class = BookSerializer
+#     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+#     filterset_fields = ["genre"]
+#     search_fields = ["title", "description"]
+#     ordering_fields = ["price"]
+#     pagination_class = CustomBookPagination
 
 
 # class CircuitBreakerOpen(Exception):
 #     pass
-#
-#
-# class Providers:
-#     providers_list = ['signal', 'kavehnegar']
 #
 #
 # class CircuitBreaker:
@@ -116,10 +112,13 @@ class BookListAPIView(generics.ListAPIView):
 #         self.circuit_open_time = None
 #
 #
+# class Providers:
+#     providers_list = ["signal", "kavehnegar"]
+#
+#
 # class SMSManager:
 #     def __init__(self):
 #         self.service_providers = Providers.providers_list
-#         self.provider_availability = {provider: True for provider in self.service_providers}
 #         self.provider_failure_count = {provider: 0 for provider in self.service_providers}
 #
 #     def login_with_otp(self, member):
@@ -186,77 +185,35 @@ class BookListAPIView(generics.ListAPIView):
 #         return self.provider_failure_count.get(provider, 0)
 #
 #
-# sms_provider = SMSManager()
-
-
-# class CircuitBreakerOpen(Exception):
-#     pass
+# redis_client = redis.Redis(host="127.0.0.1", port=6379, db=0)
+# sms_manager = SMSManager()
 #
 #
-# class CircuitBreaker:
-#     def __init__(self, failure_threshold, recovery_timeout):
-#         self.failure_threshold = failure_threshold
-#         self.recovery_timeout = recovery_timeout
-#         self.circuit_open_time = None
-#         self.failure_count = 0
+# @api_view(["POST"])
+# def login_member(request):
+#     try:
+#         if request.method == "POST":
+#             username = request.data.get("username")
+#             sms_manager.login_with_otp(username)
 #
-#     def __call__(self, func):
-#         def wrapped_func(*args, **kwargs):
-#             if self.circuit_open_time:
-#                 elapsed_time = time.time() - self.circuit_open_time
-#                 if elapsed_time < self.recovery_timeout:
-#                     raise CircuitBreakerOpen("Circuit breaker is open")
+#             return HttpResponse("Message has sent successfully")
+#     except Exception as e:
+#         return HttpResponse("Error occurred")
+
+
+# def login_with_otp(username):
+#     otp = generate_otp()
+#     redis_client.set(f"{username}:", otp)
+#     return send_sms(username, otp)
 #
-#                 self.reset_circuit()
 #
-#             try:
-#                 result = func(*args, **kwargs)
-#                 self.reset_circuit()
-#                 return result
-#             except Exception as e:
-#                 self.failure_count += 1
-#                 if self.failure_count >= self.failure_threshold:
-#                     self.open_circuit()
-#                     raise CircuitBreakerOpen("Circuit breaker is open")
-#                 print(f"Failed to execute function: {str(e)}")
+# def generate_otp(length=6):
+#     otp = ""
+#     for _ in range(length):
+#         otp += str(random.randint(0, 9))
+#     return otp
 #
-#         return wrapped_func
 #
-#     def open_circuit(self):
-#         self.circuit_open_time = time.time()
-#
-#     def reset_circuit(self):
-#         self.failure_count = 0
-#         self.circuit_open_time = None
-
-redis_client = redis.from_url("redis://172.17.0.2:6379")
-redis_client.set(f"amirhassan", 3)
-
-
-@api_view(["POST"])
-def login_member(request):
-    try:
-        if request.method == "POST":
-            username = request.data.get("username")
-            otp = login_with_otp(username)
-            print(otp)
-            return HttpResponse("Message has sent successfully")
-    except Exception as e:
-        return HttpResponse("Error occurred")
-
-
-def login_with_otp(username):
-    otp = generate_otp()
-    return otp
-
-
-def generate_otp(length=6):
-    otp = ""
-    for _ in range(length):
-        otp += str(random.randint(0, 9))
-    return otp
-
-
 # def send_sms(username, otp):
 #     provider = choose_provider()
 #     if provider == 'signal':
@@ -277,6 +234,52 @@ def generate_otp(length=6):
 #
 # def send_sms_with_signal(username, otp):
 #     return f'The otp number for {username} is: {otp}, signal'
+
+
+
+def generate_otp_view(request):
+    if request.method == 'POST':
+        phone_number = request.data.get('phone_number')
+        otp = generate_otp()
+
+        if send_otp_with_circuit_breaker(phone_number, otp):
+            redis_client.setex(phone_number, 600, otp)
+            return JsonResponse({'message': 'OTP sent successfully'})
+        else:
+            return JsonResponse({'error': 'All service providers are currently blocked. Please try again later.'},
+                                status=500)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+def verify_otp_view(request):
+    if request.method == 'POST':
+        phone_number = request.POST.get('phone_number')
+        otp = request.POST.get('otp')
+
+        if verify_otp(phone_number, otp):
+            return JsonResponse({'message': 'OTP verified successfully'})
+        else:
+            return JsonResponse({'error': 'Invalid OTP'}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
