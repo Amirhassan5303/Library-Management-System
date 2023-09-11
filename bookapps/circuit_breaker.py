@@ -21,12 +21,10 @@ def unblock_provider(provider):
 def send_otp_with_circuit_breaker(phone_number, otp):
     provider = random.choice(['kavenegar', 'signal'])
 
-    # Track consecutive failures for the provider
     consecutive_failures = 0
 
     while consecutive_failures < 3:
         if is_provider_blocked(provider):
-            # If the provider is blocked, switch to the other provider
             provider = 'signal' if provider == 'kavenegar' else 'kavenegar'
             continue
 

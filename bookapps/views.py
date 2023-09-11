@@ -1,6 +1,6 @@
-from redis_connection import redis_client
-from otp_generator import generate_otp, verify_otp
-from circuit_breaker import send_otp_with_circuit_breaker
+# from redis_connection import redis_client
+# from otp_generator import generate_otp, verify_otp
+# from circuit_breaker import send_otp_with_circuit_breaker
 from .models import Member, Book, Borrow
 from .serializers import BookSerializer
 from rest_framework.response import Response
@@ -9,7 +9,8 @@ from rest_framework.decorators import api_view
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 from django.http import HttpResponse, JsonResponse
-
+import redis
+import random
 
 
 # @api_view(["GET"])
@@ -236,7 +237,92 @@ from django.http import HttpResponse, JsonResponse
 #     return f'The otp number for {username} is: {otp}, signal'
 
 
+redis_client = redis.Redis(host="127.0.0.1", port=6379, db=0)
 
+
+def send_otp_with_kavenegar(phone_number, otp):
+    print(f"Sending OTP {otp} via Kavenegar to {phone_number}")
+
+
+def send_otp_with_signal(phone_number, otp):
+    print(f"Sending OTP {otp} via Signal to {phone_number}")
+
+
+def is_provider_blocked(provider):
+    provider_key = f"{provider}_circuit_state"
+    return redis_client.get(provider_key) == b'blocked'
+
+
+def block_provider(provider):
+    provider_key = f"{provider}_circuit_state"
+    redis_client.setex(provider_key, 1800, 'blocked')
+
+
+def unblock_provider(provider):
+    provider_key = f"{provider}_circuit_state"
+    redis_client.delete(provider_key)
+
+
+def send_otp_with_circuit_breaker(phone_number, otp):
+    sms_providers = ['kavenegar', 'signal']
+    consecutive_failures = 0
+
+    while consecutive_failures < 3:
+        available_providers = [provider for provider in sms_providers if not is_provider_blocked(provider)]
+
+        if not available_providers:
+            time.sleep(60)
+            continue
+
+        provider = random.choice(available_providers)
+
+        try:
+            send_function = globals().get(f"send_otp_with_{provider}")
+            send_function(phone_number, otp)
+
+            return True
+        except Exception as e:
+            print(f"Failed to send OTP via {provider}: {str(e)}")
+            consecutive_failures += 1
+
+        if consecutive_failures >= 3:
+            block_provider(provider)
+            return False
+
+        unblock_provider(provider)
+        return False
+
+
+
+def send_otp_with_provider3(phone_number, otp):
+    pass
+
+def send_otp_with_provider4(phone_number, otp):
+    pass
+
+
+
+def generate_otp(length=6):
+    otp = ""
+    for _ in range(length):
+        otp += str(random.randint(1, 7))
+    return otp
+
+
+def verify_otp(phone_number, otp):
+    stored_otp = redis_client.get(phone_number)
+
+    if stored_otp:
+        stored_otp = stored_otp.decode('utf-8')
+
+        if otp == stored_otp:
+            redis_client.delete(phone_number)
+            return True
+
+    return False
+
+
+@api_view(["POST"])
 def generate_otp_view(request):
     if request.method == 'POST':
         phone_number = request.data.get('phone_number')
@@ -252,17 +338,24 @@ def generate_otp_view(request):
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
+@api_view(["POST"])
 def verify_otp_view(request):
     if request.method == 'POST':
-        phone_number = request.POST.get('phone_number')
-        otp = request.POST.get('otp')
+        phone_number = request.data.get('phone_number')
+        otp = request.data.get('otp')
 
-        if verify_otp(phone_number, otp):
-            return JsonResponse({'message': 'OTP verified successfully'})
+        if phone_number is not None and otp is not None:
+            if verify_otp(phone_number, otp):
+                return JsonResponse({'message': 'OTP verified successfully'})
+            else:
+                return JsonResponse({'error': 'Invalid OTP'}, status=400)
         else:
-            return JsonResponse({'error': 'Invalid OTP'}, status=400)
+            return JsonResponse({'error': 'Invalid input data'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
 
 
 
